@@ -1,1 +1,4 @@
-
+Library
+venv/
+__pycache__/
+.idea/
