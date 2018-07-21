@@ -11,7 +11,7 @@ class Bot(object):
 
 		#initialize the bots log
 		LibraryLog = open("LibraryLog.log", "w")
-		LibraryLog.writelines("LOG INITIALIZED ")
+		LibraryLog.writelines("LOG INITIALIZED \n")
 		LibraryLog.close()
 
 		self.slack_client = SlackClient("xoxb-403303008263-402160290483-prTeUIWAM3hziOyE1rgIOs0N")

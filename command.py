@@ -47,8 +47,9 @@ class Command(object):
 		
 	def addBook(self, parameters):
 		title = parameters
-		author="N/A"
-		owner="N/A"
+		author = "N/A"
+		owner = "N/A"
+		result = "BOOK ADDED"
 
 		#SQLLITE CONNECTION
 		library = sqlite3.connect('library')
@@ -57,16 +58,19 @@ class Command(object):
 		title = title.replace("\"", "")
 
 		#SQL MAGIC
-		library.execute('''INSERT INTO books(title, author, owner, checkedOutBy, checkoutDate)
-		 VALUES(?,?,?,?,?)''', (title, author, owner, "Available",""))
-		library.commit()
-		library.close()
+		try:
+			library.execute('''INSERT INTO books(title, author, owner, checkedOutBy, checkoutDate)
+		    		 VALUES(?,?,?,?,?)''', (title, author, owner, "Available", ""))
+			library.commit()
+			library.close()
+		except:
+			result = "There was an error while processing your request, please try again."
 
 		#LOGGING
 		LibraryLog = open("LibraryLog.log", "a")
-		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user)+" ADDED BOOK " + title)
+		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user)+" ADDED BOOK " + title + "\n")
 		LibraryLog.close()
-		return "BOOK ADDED"
+		return result
 
 	def showLibrary(self, parameters ):
 		result=""
@@ -75,7 +79,10 @@ class Command(object):
 		libraryCurser = library.cursor()
 
 		#SQL MAGIC
-		libraryCurser.execute('''SELECT title, author, owner, checkedOutBy, checkoutDate FROM books''')
+		try:
+			libraryCurser.execute('''SELECT title, author, owner, checkedOutBy, checkoutDate FROM books''')
+		except:
+			return "There was an error while processing your request, please try again."
 		result = "TITLE | AUTHOR | OWNER | CHECKED OUT BY | CHECK OUT DATE \n"
 		#DISPLAY QUERY
 		for row in libraryCurser.fetchall():
@@ -86,6 +93,7 @@ class Command(object):
 
 	def editBook(self, parameters):
 		fieldREGEX = re.compile('(\".*?\") (\".*?\") (\".*?\")')
+		result = "EDIT COMPLETE"
 
 		#SQLLITE CONNECTION
 		library = sqlite3.connect('library')
@@ -103,23 +111,29 @@ class Command(object):
 		update = self.cleanInput(update)
 
 		#SQL MAGIC
-		if(field == "author"):
-			libraryCurser.execute('''UPDATE books SET author = ? WHERE title = ? ''', (update, title))
-		elif(field == "owner"):
-			libraryCurser.execute('''UPDATE books SET owner = ? WHERE title = ? ''', (self.get_user_name(update), title))
-		elif(field == "title"):
-			libraryCurser.execute('''UPDATE books SET title = ? WHERE title = ? ''', (update, title))
-		library.commit()
-		library.close()
+		try:
+			if (field == "author"):
+				libraryCurser.execute('''UPDATE books SET author = ? WHERE title = ? ''', (update, title))
+			elif (field == "owner"):
+				libraryCurser.execute('''UPDATE books SET owner = ? WHERE title = ? ''',
+									  (self.get_user_name(update), title))
+			elif (field == "title"):
+				libraryCurser.execute('''UPDATE books SET title = ? WHERE title = ? ''', (update, title))
+
+			library.commit()
+			library.close()
+		except:
+			result = "There was an error Processing your request, please try again"
 
 		#LOGGING
 		LibraryLog = open("LibraryLog.log", "a")
-		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user)+" CHANGED FIELD " + field + " TO " + update + "ON BOOK" + title)
+		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user)+" CHANGED FIELD " + field + " TO " + update + "ON BOOK" + title + "\n")
 		LibraryLog.close()
-		return "Update Complete"
+		return result
 
 	def checkoutBook(self,parameters):
 		fieldREGEX = re.compile('(\".*?\").*')
+		result = "Book Checked Out"
 
 		#SQLLITE CONNECTION
 		library = sqlite3.connect('library')
@@ -133,16 +147,20 @@ class Command(object):
 		title = title.replace("\"", "")
 
 		#SQL MAGIC
-		libraryCurser.execute('''UPDATE books SET checkedOutBy = ? WHERE title = ? ''', (self.user, title))
-		libraryCurser.execute('''UPDATE books SET checkoutDate= ? WHERE title = ? ''', (datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y"), title))
-		library.commit()
-		library.close()
+		try:
+			libraryCurser.execute('''UPDATE books SET checkedOutBy = ? WHERE title = ? ''', (self.user, title))
+			libraryCurser.execute('''UPDATE books SET checkoutDate= ? WHERE title = ? ''',
+								  (datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y"), title))
+			library.commit()
+			library.close()
+		except:
+			result = "There was an error while processing your request, please try again"
 
 		#LOGGING
 		LibraryLog = open("LibraryLog.log", "a")
-		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " CHECKED OUT " + title)
+		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " CHECKED OUT " + title + "\n")
 		LibraryLog.close()
-		return "Book Checked Out"
+		return result
 
 	def returnBook(self,parameters):
 		fieldREGEX = re.compile('(\".*?\").*')
@@ -159,19 +177,23 @@ class Command(object):
 		title = title.replace("\"", "")
 
 		#SQL MAGIC
-		libraryCurser.execute('''UPDATE books SET checkedOutBy = ? WHERE title = ? ''', ("AVAILABLE", title))
-		libraryCurser.execute('''UPDATE books SET checkoutDate= ? WHERE title = ? ''', ("", title))
-		library.commit()
-		library.close()
+		try:
+			libraryCurser.execute('''UPDATE books SET checkedOutBy = ? WHERE title = ? ''', ("AVAILABLE", title))
+			libraryCurser.execute('''UPDATE books SET checkoutDate= ? WHERE title = ? ''', ("", title))
+			library.commit()
+			library.close()
+		except:
+			result = "There was an error while processing your request, please try again."
 
 		#LOGGING
 		LibraryLog = open("LibraryLog.log", "a")
-		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " RETURNED " + title)
+		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " RETURNED " + title  + "\n")
 		LibraryLog.close()
-		return "Book Has Been Returned"
+		return result
 
 	def removeBook(self, parameters):
 		fieldREGEX = re.compile('(\".*?\").*')
+		result = "Book Has Been Removed From the Library"
 
 		#SQLLITE CONNECTION
 		library = sqlite3.connect('library')
@@ -184,15 +206,18 @@ class Command(object):
 			return "Invalid Parameters\n removebook [\"title\"]\n"
 		title = title.replace("\"", "")
 		# SQL MAGIC
-		libraryCurser.execute('''DELETE FROM books WHERE title = ? ''', (title,))
-		library.commit()
-		library.close()
+		try:
+			libraryCurser.execute('''DELETE FROM books WHERE title = ? ''', (title,))
+			library.commit()
+			library.close()
+		except:
+			result = "There was an error processing your request, please try again"
 
 		#LOGGING
 		LibraryLog = open("LibraryLog.log", "a")
-		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " REMOVED " + title)
+		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " REMOVED " + title  + "\n")
 		LibraryLog.close()
-		return "Book Has Been Removed From the Library"
+		return result
 
 	def help(self, parameters):
 		response = "Currently I support the following commands:\r\n"
@@ -215,8 +240,6 @@ class Command(object):
 			# retrieve all users so we can find the user
 			users = api_call.get('members')
 			for user in users:
-				print(id)
-				print(user.get('id'))
 				if user.get('id').lower() == id.lower():
 					return "<@" + user.get('name') + ">"
 			return "ERROR"
