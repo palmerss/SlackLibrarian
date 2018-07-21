@@ -12,6 +12,7 @@ class Command(object):
 			"editbook"    : self.editBook,
 			"checkout"    : self.checkoutBook,
 			"return"      : self.returnBook,
+			"removebook"      : self.removeBook,
 			"help"        : self.help
 		}
 
@@ -75,7 +76,7 @@ class Command(object):
 
 		#SQL MAGIC
 		libraryCurser.execute('''SELECT title, author, owner, checkedOutBy, checkoutDate FROM books''')
-
+		result = "TITLE | AUTHOR | OWNER | CHECKED OUT BY | CHECK OUT DATE \n"
 		#DISPLAY QUERY
 		for row in libraryCurser.fetchall():
 			result += row[0] + " , " + row[1] + " , " + row[2]+ " , " + row[3] + " , " + row[4]
@@ -97,15 +98,9 @@ class Command(object):
 			update=fieldREGEX.match(parameters).group(3)
 		except:
 			return "Invalid Parameters\n editbook [\"title\"] [\"field\"] [\"fieldUpdate\"]\n"
-		title = title.replace("\"", "")
-		field = field.replace("\"", "")
-		update = update.replace("\"", "")
-		update = update.replace("@", "")
-		update = update.replace("<", "")
-		update = update.replace(">", "")
-		title = title.strip()
-		field = field.strip()
-		update = update.strip()
+		title = self.cleanInput(title)
+		field = self.cleanInput(field)
+		update = self.cleanInput(update)
 
 		#SQL MAGIC
 		if(field == "author"):
@@ -175,25 +170,61 @@ class Command(object):
 		LibraryLog.close()
 		return "Book Has Been Returned"
 
-	def help(self,parameters):
+	def removeBook(self, parameters):
+		fieldREGEX = re.compile('(\".*?\").*')
+
+		#SQLLITE CONNECTION
+		library = sqlite3.connect('library')
+		libraryCurser = library.cursor()
+
+		# PARAMETER PARSING
+		try:
+			title = fieldREGEX.match(parameters).group(1)
+		except:
+			return "Invalid Parameters\n removebook [\"title\"]\n"
+		title = title.replace("\"", "")
+		# SQL MAGIC
+		libraryCurser.execute('''DELETE FROM books WHERE title = ? ''', (title,))
+		library.commit()
+		library.close()
+
+		#LOGGING
+		LibraryLog = open("LibraryLog.log", "a")
+		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " REMOVED " + title)
+		LibraryLog.close()
+		return "Book Has Been Removed From the Library"
+
+	def help(self, parameters):
 		response = "Currently I support the following commands:\r\n"
 		
 		response +="addbook [\"title\"]\n" \
 				   "showlibrary\n" \
 				   "editbook [\"title\"] [\"field\"] [\"fieldUpdate\"]\n" \
 				   "checkout [\"title\"]\n" \
-				   "return [\"title\"]" \
+				   "return [\"title\"]\n" \
+				   "remove [\"title\"]\n" \
 				   "help"
 
 		return response
 
 	#USES THE SLACK API TO CONVERT USER ID TO USERNAME
 	def get_user_name(self, id):
+		id = self.cleanInput(id)
 		api_call = self.slackCLient.api_call("users.list")
 		if api_call.get('ok'):
 			# retrieve all users so we can find the user
 			users = api_call.get('members')
 			for user in users:
-				if user.get('id').lower() == id:
+				print(id)
+				print(user.get('id'))
+				if user.get('id').lower() == id.lower():
 					return "<@" + user.get('name') + ">"
 			return "ERROR"
+
+	def cleanInput(self,input):
+		input = input.replace("\"", "")
+		input = input.replace("@", "")
+		input = input.replace("<", "")
+		input = input.replace(">", "")
+		input = input.strip()
+		return input

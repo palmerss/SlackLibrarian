@@ -1,5 +1,6 @@
-Library
+library
 venv/
 __pycache__/
 .idea/
 *.pyc
+LibraryLog.log
