@@ -83,11 +83,11 @@ class Command(object):
 			libraryCurser.execute('''SELECT title, author, owner, checkedOutBy, checkoutDate FROM books''')
 		except:
 			return "There was an error while processing your request, please try again."
-		result = "TITLE | AUTHOR | OWNER | CHECKED OUT BY | CHECK OUT DATE \n"
 		#DISPLAY QUERY
+		counter=0
 		for row in libraryCurser.fetchall():
-			result += row[0] + " , " + row[1] + " , " + row[2]+ " , " + row[3] + " , " + row[4]
-
+			result += str(counter) + ". Title: " + row[0] + " \n	Author: " + row[1] + " \n	Owner: " + row[2]+ " \n	Checked Out By: " + row[3] + " \n	CheckOut Date: " + row[4]
+			counter += 1
 		library.close()
 		return result
 
