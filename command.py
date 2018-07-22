@@ -1,6 +1,8 @@
 import re
 import sqlite3
 import datetime
+from scipy import spatial
+
 
 class Command(object):
 	def __init__(self):
@@ -86,7 +88,7 @@ class Command(object):
 		#DISPLAY QUERY
 		counter=0
 		for row in libraryCurser.fetchall():
-			result += str(counter) + ". Title: " + row[0] + " \n	Author: " + row[1] + " \n	Owner: " + row[2]+ " \n	Checked Out By: " + row[3] + " \n	CheckOut Date: " + row[4]
+			result += str(counter) + ". Title: " + row[0] + " \n	Author: " + row[1] + " \n	Owner: " + row[2]+ " \n	Checked Out By: " + row[3] + " \n	CheckOut Date: " + row[4] + "\n"
 			counter += 1
 		library.close()
 		return result
@@ -112,13 +114,22 @@ class Command(object):
 
 		#SQL MAGIC
 		try:
-			if (field == "author"):
-				libraryCurser.execute('''UPDATE books SET author = ? WHERE title = ? ''', (update, title))
-			elif (field == "owner"):
-				libraryCurser.execute('''UPDATE books SET owner = ? WHERE title = ? ''',
-									  (self.get_user_name(update), title))
-			elif (field == "title"):
-				libraryCurser.execute('''UPDATE books SET title = ? WHERE title = ? ''', (update, title))
+			# check if the title exists and gather recommendations
+			recommendations = self.getRecommendations(title)
+
+			# if title exists, checkout the book
+			if (recommendations == "MATCH"):
+				if (field == "author"):
+					libraryCurser.execute('''UPDATE books SET author = ? WHERE title = ? ''', (update, title))
+				elif (field == "owner"):
+					libraryCurser.execute('''UPDATE books SET owner = ? WHERE title = ? ''',
+										  (self.get_user_name(update), title))
+				elif (field == "title"):
+					libraryCurser.execute('''UPDATE books SET title = ? WHERE title = ? ''', (update, title))
+
+			# give a recommendation if title does not exists
+			else:
+				result = recommendations
 
 			library.commit()
 			library.close()
@@ -148,22 +159,34 @@ class Command(object):
 
 		#SQL MAGIC
 		try:
-			libraryCurser.execute('''UPDATE books SET checkedOutBy = ? WHERE title = ? ''', (self.user, title))
-			libraryCurser.execute('''UPDATE books SET checkoutDate= ? WHERE title = ? ''',
-								  (datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y"), title))
-			library.commit()
-			library.close()
+			#check if the title exists and gather recommendations
+			recommendations = self.getRecommendations(title)
+
+			# if title exists, checkout the book
+			if(recommendations == "MATCH"):
+				libraryCurser.execute('''UPDATE books SET checkedOutBy = ? WHERE title = ? ''',
+									  (self.user, title))
+				libraryCurser.execute('''UPDATE books SET checkoutDate= ? WHERE title = ? ''',
+									  (datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y"), title))
+				library.commit()
+				library.close()
+
+				# LOGGING
+				LibraryLog = open("LibraryLog.log", "a")
+				LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " CHECKED OUT " + title + "\n")
+				LibraryLog.close()
+
+			# give a recommendation if title does not exists
+			else:
+				result = recommendations
 		except:
 			result = "There was an error while processing your request, please try again"
 
-		#LOGGING
-		LibraryLog = open("LibraryLog.log", "a")
-		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " CHECKED OUT " + title + "\n")
-		LibraryLog.close()
 		return result
 
 	def returnBook(self,parameters):
 		fieldREGEX = re.compile('(\".*?\").*')
+		result = "BOOK RETURNED"
 
 		#SQLLITE CONNECTION
 		library = sqlite3.connect('library')
@@ -178,17 +201,27 @@ class Command(object):
 
 		#SQL MAGIC
 		try:
-			libraryCurser.execute('''UPDATE books SET checkedOutBy = ? WHERE title = ? ''', ("AVAILABLE", title))
-			libraryCurser.execute('''UPDATE books SET checkoutDate= ? WHERE title = ? ''', ("", title))
-			library.commit()
-			library.close()
+			# check if the title exists and gather recommendations
+			recommendations = self.getRecommendations(title)
+
+			# if title exists, checkout the book
+			if (recommendations == "MATCH"):
+				libraryCurser.execute('''UPDATE books SET checkedOutBy = ? WHERE title = ? ''', ("Available", title))
+				libraryCurser.execute('''UPDATE books SET checkoutDate= ? WHERE title = ? ''', ("", title))
+				library.commit()
+				library.close()
+
+				# LOGGING
+				LibraryLog = open("LibraryLog.log", "a")
+				LibraryLog.writelines(
+				datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " RETURNED " + title + "\n")
+				LibraryLog.close()
+
+			# give a recommendation if title does not exists
+			else:
+				result = recommendations
 		except:
 			result = "There was an error while processing your request, please try again."
-
-		#LOGGING
-		LibraryLog = open("LibraryLog.log", "a")
-		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " RETURNED " + title  + "\n")
-		LibraryLog.close()
 		return result
 
 	def removeBook(self, parameters):
@@ -207,16 +240,26 @@ class Command(object):
 		title = title.replace("\"", "")
 		# SQL MAGIC
 		try:
-			libraryCurser.execute('''DELETE FROM books WHERE title = ? ''', (title,))
-			library.commit()
-			library.close()
+			# check if the title exists and gather recommendations
+			recommendations = self.getRecommendations(title)
+
+			# if title exists, checkout the book
+			if (recommendations == "MATCH"):
+				libraryCurser.execute('''DELETE FROM books WHERE title = ? ''', (title,))
+				library.commit()
+				library.close()
+
+				# LOGGING
+				LibraryLog = open("LibraryLog.log", "a")
+				LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " REMOVED " + title + "\n")
+				LibraryLog.close()
+
+			# give a recommendation if title does not exists
+			else:
+				result = recommendations
 		except:
 			result = "There was an error processing your request, please try again"
 
-		#LOGGING
-		LibraryLog = open("LibraryLog.log", "a")
-		LibraryLog.writelines(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y") + " : " + self.get_user_name(self.user) + " REMOVED " + title  + "\n")
-		LibraryLog.close()
 		return result
 
 	def help(self, parameters):
@@ -227,7 +270,7 @@ class Command(object):
 				   "editbook [\"title\"] [\"field\"] [\"fieldUpdate\"]\n" \
 				   "checkout [\"title\"]\n" \
 				   "return [\"title\"]\n" \
-				   "remove [\"title\"]\n" \
+				   "removebook [\"title\"]\n" \
 				   "help"
 
 		return response
@@ -251,3 +294,52 @@ class Command(object):
 		input = input.replace(">", "")
 		input = input.strip()
 		return input
+
+	def cosineSimularity(self, item, query):
+		item = item.lower()
+		query = query.lower()
+
+		result = ""
+		itemsVector = [0] * 128
+		queryVector = [0] * 128
+
+		#turn the query into a vector
+		queryInChar = list(query)
+		for char in queryInChar:
+			queryVector[ord(char)] += 1
+
+		#turn each item into a vector and compare
+		itemInChar = list(item)
+		for char in itemInChar:
+			itemsVector[ord(char)] += 1
+		#Get Cosine Simularity and compare with threshold
+		compareResult = 1 - spatial.distance.cosine(itemsVector, queryVector) #cosine simularity to compare vectors
+		if(compareResult > .80):
+			result = item
+		return result
+
+	def getRecommendations(self, title):
+		#SQLLITE CONNECTION
+		library = sqlite3.connect('library')
+		libraryCurser = library.cursor()
+		recommendations = []
+
+		# Check if the title exists and collect recommendations
+		libraryCurser.execute('''SELECT title FROM books''')
+		for row in libraryCurser.fetchall():
+			recommendation = self.cosineSimularity(row[0], title)
+			if (recommendation != ""):
+				recommendations.append(recommendation)
+			if (title.lower() == row[0].lower()):
+				return "MATCH"
+
+		if(not recommendations):
+			result = "Could not find title " + "\"" + title + "\""
+		else:
+			result = "Could not find title " + "\"" + title + "\"" + " did you mean?\n"
+			for item in recommendations:
+				result += item + "\n"
+
+		libraryCurser.close()
+		library.close()
+		return result
