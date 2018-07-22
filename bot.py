@@ -2,17 +2,22 @@ import time
 import event
 import sqlite3
 from slackclient import SlackClient
-
+from pathlib import Path
 
 class Bot(object):
 	def __init__(self):
 		#initializes a new Library SQLLite File
-		#self.libraryINIT()
+		my_file = Path("library")
+		if (not my_file.is_file()):
+			self.libraryINIT()
 
 		#initialize the bots log
-		LibraryLog = open("LibraryLog.log", "w")
-		LibraryLog.writelines("LOG INITIALIZED \n")
-		LibraryLog.close()
+		my_file = Path("LibraryLog.log")
+		if (not my_file.is_file()):
+			print ("No log detected, creating new one")
+			LibraryLog = open("LibraryLog.log", "w")
+			LibraryLog.writelines("LOG INITIALIZED \n")
+			LibraryLog.close()
 
 		self.slack_client = SlackClient("xoxb-403303008263-402160290483-prTeUIWAM3hziOyE1rgIOs0N")
 		self.bot_name = "librarian"
@@ -54,3 +59,4 @@ class Bot(object):
 	     checkedOutBy TEXT,
 	     checkoutDate TEXT) ''')
 		library.commit()
+		print ("No library detected, created new one")
