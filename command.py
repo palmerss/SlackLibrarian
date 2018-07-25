@@ -14,7 +14,7 @@ class Command(object):
 			"editbook"    : self.editBook,
 			"checkout"    : self.checkoutBook,
 			"return"      : self.returnBook,
-			"removebook"      : self.removeBook,
+			"removebook"  : self.removeBook,
 			"help"        : self.help
 		}
 
@@ -50,7 +50,7 @@ class Command(object):
 	def addBook(self, parameters):
 		title = parameters
 		author = "N/A"
-		owner = "N/A"
+		owner = self.get_user_name(self.user)
 		result = "BOOK ADDED"
 
 		#SQLLITE CONNECTION
