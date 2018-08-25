@@ -18,8 +18,8 @@ class Bot(object):
 			LibraryLog = open("LibraryLog.log", "w")
 			LibraryLog.writelines("LOG INITIALIZED \n")
 			LibraryLog.close()
-
-		self.slack_client = SlackClient("xoxb-403303008263-402160290483-prTeUIWAM3hziOyE1rgIOs0N")
+		#xoxb-403303008263-402160290483-prTeUIWAM3hziOyE1rgIOs0N  -- old key
+		self.slack_client = SlackClient(self.loadSlackAPIKey())
 		self.bot_name = "librarian"
 		self.bot_id = self.get_bot_id()
 		
@@ -60,3 +60,13 @@ class Bot(object):
 	     checkoutDate TEXT) ''')
 		library.commit()
 		print ("No library detected, created new one")
+
+	def loadSlackAPIKey(self):
+		my_file = Path("slackAPIKey.txt")
+		if (not my_file.is_file()):
+			print ("API Key not detected, exiting program")
+		else:
+			apiKeyFile = open("slackAPIKey.txt", "r")
+			print ("API Key found")
+			apiKey = apiKeyFile.read().replace('\n','')
+			return apiKey
