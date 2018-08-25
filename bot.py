@@ -26,7 +26,6 @@ class Bot(object):
 		if self.bot_id is None:
 			print('Could not find librarian')
 			exit("Error, could not find " + self.bot_name)
-	
 		self.event = event.Event(self)
 		self.listen()
 	
@@ -70,3 +69,6 @@ class Bot(object):
 			print ("API Key found")
 			apiKey = apiKeyFile.read().replace('\n','')
 			return apiKey
+
+
+

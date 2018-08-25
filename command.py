@@ -1,6 +1,7 @@
 import re
 import sqlite3
 import datetime
+import sys
 from scipy import spatial
 
 
@@ -23,7 +24,13 @@ class Command(object):
 		command = ""
 		parameters = ""
 		self.slackCLient = slackClient
-		self.user = "<@" + user + "> "
+		self.user = user
+
+		arguments = sys.argv[1]
+		print arguments
+		if (arguments == "fixLibraryUsers"):
+			self.fixLibraryUsers()
+			exit()
 
 		#Collect command
 		if(self.commandREGEX.search(input)):
@@ -50,7 +57,7 @@ class Command(object):
 	def addBook(self, parameters):
 		title = parameters
 		author = "N/A"
-		owner = self.get_user_name(self.user)
+		owner = self.user
 		result = "BOOK ADDED"
 
 		#SQLLITE CONNECTION
@@ -88,7 +95,7 @@ class Command(object):
 		#DISPLAY QUERY
 		counter=0
 		for row in libraryCurser.fetchall():
-			result += str(counter) + ". Title: " + row[0] + " \n	Author: " + row[1] + " \n	Owner: " + row[2]+ " \n	Checked Out By: " + row[3] + " \n	CheckOut Date: " + row[4] + "\n"
+			result += str(counter) + ". Title: " + row[0] + " \n	Author: " + row[1] + " \n	Owner: " + self.get_user_name(row[2])+ " \n	Checked Out By: " + self.get_user_name(row[3]) + " \n	CheckOut Date: " + row[4] + "\n"
 			counter += 1
 		library.close()
 		return result
@@ -123,7 +130,7 @@ class Command(object):
 					libraryCurser.execute('''UPDATE books SET author = ? WHERE title = ? ''', (update, title))
 				elif (field == "owner"):
 					libraryCurser.execute('''UPDATE books SET owner = ? WHERE title = ? ''',
-										  (self.get_user_name(update), title))
+										  (self.get_user_ID(update), title))
 				elif (field == "title"):
 					libraryCurser.execute('''UPDATE books SET title = ? WHERE title = ? ''', (update, title))
 
@@ -277,6 +284,8 @@ class Command(object):
 
 	#USES THE SLACK API TO CONVERT USER ID TO USERNAME
 	def get_user_name(self, id):
+		if(id == "Available"):
+			return "Available"
 		id = self.cleanInput(id)
 		api_call = self.slackCLient.api_call("users.list")
 		if api_call.get('ok'):
@@ -285,7 +294,19 @@ class Command(object):
 			for user in users:
 				if user.get('id').lower() == id.lower():
 					return "<@" + user.get('name') + ">"
-			return "ERROR"
+			return id
+
+	#USES THE SLACK API TO CONVERT USERNAME TO ID
+	def get_user_ID(self, name):
+		name = self.cleanInput(name)
+		api_call = self.slackCLient.api_call("users.list")
+		if api_call.get('ok'):
+			# retrieve all users so we can find the user
+			users = api_call.get('members')
+			for user in users:
+				if user.get('name').lower() == name.lower():
+					return user.get('id')
+			return name
 
 	def cleanInput(self,input):
 		input = input.replace("\"", "")
@@ -343,3 +364,18 @@ class Command(object):
 		libraryCurser.close()
 		library.close()
 		return result
+
+	#This function was implemented to correct entries in the database that were originally entered as the username instead of user ID
+	def fixLibraryUsers(self):
+		library = sqlite3.connect('library')
+		libraryCurser = library.cursor()
+		try:
+			libraryCurser.execute('''SELECT title, author, owner, checkedOutBy, checkoutDate FROM books''')
+		except:
+			return "There was an error while processing your request, please try again."
+		for row in libraryCurser.fetchall():
+			libraryCurser.execute('''UPDATE books SET owner = ? WHERE title = ? ''', (self.get_user_ID(row[2]), row[0]))
+			libraryCurser.execute('''UPDATE books SET checkedOutBy = ? WHERE title = ? ''', (self.get_user_ID(row[3]), row[0]))
+		libraryCurser.close()
+		library.commit()
+		print ("Library Users Updated")
