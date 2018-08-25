@@ -26,11 +26,11 @@ class Command(object):
 		self.slackCLient = slackClient
 		self.user = user
 
-		arguments = sys.argv[1]
-		print arguments
-		if (arguments == "fixLibraryUsers"):
-			self.fixLibraryUsers()
-			exit()
+		if(len(sys.argv)>1):
+			arguments = sys.argv[1]
+			if (arguments == "fixLibraryUsers"):
+				self.fixLibraryUsers()
+				exit()
 
 		#Collect command
 		if(self.commandREGEX.search(input)):
