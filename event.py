@@ -1,4 +1,5 @@
 import command
+import re
 
 class Event:
 	def __init__(self, bot):
@@ -14,10 +15,13 @@ class Event:
 				self.parse_event(event)
 				
 	def parse_event(self, event):
-		if event and 'text' in event and self.bot.bot_id in event['text']:
-			self.handle_event(event['user'], event['text'].split(self.bot.bot_id)[1].strip(), event['channel'])
+		if event and 'text' in event:
+			self.handle_event(event['user'], event['text'].strip(), event['channel'])
 	
 	def handle_event(self, user, command, channel):
+		#when a slack message is sent it triggers an event, even if it is the bot replying, this block allows us to check if the bot is replying.
+		if(self.bot.get_bot_id() == "<@"+user+">"):
+			return
 		if command and channel:
 			print ("Received command: " + command + " in channel: " + channel + " from user: " + user)
 			response = self.command.handle_command(user, command, self.bot.slack_client)
